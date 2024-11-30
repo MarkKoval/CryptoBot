@@ -1,31 +1,40 @@
 const TelegramBot = require('node-telegram-bot-api');
 const axios = require('axios');
 
-// Replace with your actual bot token
-const TELEGRAM_BOT_TOKEN = '7834249329:AAGb8wzWsvWbAqW0RcT9ilv3scHuLRbBh7E';
+// Replace with your actual bot token and CoinMarketCap API key
+const TELEGRAM_BOT_TOKEN = '7834249329:AAHQ6ycu-bv-KSFetdxdrasx8FcWY-OEml4';
+const CMC_API_KEY = 'cfbfcb82-8405-41de-8a4f-232043d0b7c1';
 
 // Initialize the bot
 const bot = new TelegramBot(TELEGRAM_BOT_TOKEN, { polling: true });
 
-// CoinGecko API endpoint
-const CRYPTO_API_URL = 'https://api.coingecko.com/api/v3/simple/price';
+// CoinMarketCap API endpoint
+const CMC_API_URL = 'https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest';
 
-// Token IDs as per CoinGecko's API
-const TOKEN_IDS = {
-    GRASS: 'grass-token', // Replace with the actual ID for GRASS
-    BITCOIN: 'bitcoin',
-    TON: 'toncoin'
+// Mapping of token symbols to CMC IDs and emojis
+const TOKEN_INFO = {
+    GRASS: { emoji: '🌿', symbol: 'GRASS' }, // Replace with the actual symbol if different
+    BTC: { emoji: '₿', symbol: 'BTC' },
+    TON: { emoji: '💎', symbol: 'TON' },
 };
 
 // Function to fetch token prices
 const fetchPrices = async () => {
     try {
-        const ids = Object.values(TOKEN_IDS).join(',');
-        const response = await axios.get(`${CRYPTO_API_URL}?ids=${ids}&vs_currencies=usd`);
-        const prices = response.data;
-        return Object.entries(TOKEN_IDS).map(([token, id]) => `${token}: $${prices[id].usd}`);
+        const symbols = Object.values(TOKEN_INFO).map((token) => token.symbol).join(',');
+        const response = await axios.get(CMC_API_URL, {
+            headers: { 'X-CMC_PRO_API_KEY': CMC_API_KEY },
+            params: { symbol: symbols, convert: 'USD' },
+        });
+        const data = response.data.data;
+
+        // Format the response with emojis
+        return Object.entries(TOKEN_INFO).map(
+            ([key, { emoji, symbol }]) =>
+                `${emoji} ${symbol}: $${data[symbol]?.quote?.USD?.price.toFixed(2) || 'N/A'}`
+        );
     } catch (error) {
-        console.error('Error fetching prices:', error);
+        console.error('Error fetching prices:', error.response?.data || error.message);
         return ['Error fetching prices'];
     }
 };
@@ -39,9 +48,8 @@ bot.onText(/\/(start|prices)/, async (msg) => {
     bot.sendMessage(chatId, messageText);
 });
 
-// Send prices automatically to users who interact with the bot
+// Track active users for automatic updates
 const activeUsers = new Set();
-
 bot.on('message', (msg) => {
     const chatId = msg.chat.id;
     if (!activeUsers.has(chatId)) {
