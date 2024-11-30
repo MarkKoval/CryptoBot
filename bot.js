@@ -48,6 +48,12 @@ bot.onText(/\/(start|prices)/, async (msg) => {
     bot.sendMessage(chatId, messageText);
 });
 
+bot.onText(/\/(restart)/, async (msg) => {
+    const chatId = msg.chat.id;
+    const messageText = `Restart`;
+    bot.sendMessage(chatId, messageText);
+});
+
 // Track active users for automatic updates
 const activeUsers = new Set();
 bot.on('message', (msg) => {
